@@ -1,0 +1,33 @@
+{
+  "name": "carlosk-wallet",
+  "version": "0.27.0",
+  "private": false,
+  "type": "module",
+  "scripts": {
+    "dev": "tauri dev",
+    "build": "tauri build",
+    "preview": "vite preview",
+    "vite": "vite",
+    "check:frontend": "tsc --noEmit",
+    "check:tauri": "cd src-tauri && cargo check",
+    "check:tauri:ldk": "cd src-tauri && cargo check --features ldk-node-signet-runtime",
+    "validate:local": "npm run check:frontend && npm run check:tauri && npm run check:tauri:ldk",
+    "diagnose:rust": "bash scripts/collect-rust-diagnostics.sh",
+    "diagnose:rust:ps": "powershell -ExecutionPolicy Bypass -File scripts/collect-rust-diagnostics.ps1",
+    "frontend:build": "vite build"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.0.0",
+    "@vitejs/plugin-react": "latest",
+    "vite": "latest",
+    "typescript": "latest",
+    "react": "latest",
+    "react-dom": "latest"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.0.0",
+    "@types/react": "latest",
+    "@types/react-dom": "latest"
+  },
+  "description": "CarlosK Wallet: simple self-custody Bitcoin + BOLT12 desktop wallet"
+}
