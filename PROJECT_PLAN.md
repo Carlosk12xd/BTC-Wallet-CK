@@ -2,24 +2,18 @@
 
 ## Product definition
 
-CarlosK Wallet is a desktop self-custody wallet with four jobs:
+A simple self-custody Bitcoin + BOLT12 desktop wallet.
 
-1. BTC on-chain wallet.
-2. On-chain send and receive.
-3. Lightning wallet with BOLT12 receiving.
-4. Message signatures.
+## Required product features
 
-## Removed from product scope
+1. Create a new BTC on-chain address.
+2. Send and receive on-chain BTC.
+3. Create a Lightning wallet that accepts BOLT12.
+4. Do message signatures.
 
-Mining dashboards, miner ROI tools, OCEAN setup bundles, payout estimators, runbooks, and release gates are no longer part of the main app.
+## v0.80 status
 
-## Implementation order
-
-1. Clean wallet UI and local wallet creation.
-2. Encrypted backup and restore.
-3. On-chain receive addresses.
-4. Real balance sync.
-5. Real send/broadcast.
-6. BIP-322 signatures.
-7. LDK signet/testnet BOLT12.
-8. Mainnet Lightning only after recovery tests.
+- On-chain receive and balance lookup are now real through public Esplora APIs.
+- Raw transaction broadcast is real.
+- Wallet-built send transactions are next.
+- In-app BOLT12 remains future work.

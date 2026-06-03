@@ -31,7 +31,7 @@ pub fn create_lightning_wallet(alias: &str) -> LightningWalletInfo {
         network: "signet/testnet planned first; mainnet locked".to_string(),
         status: "Lightning wallet profile created. Embedded BOLT12 receiving is not enabled yet.".to_string(),
         can_receive_bolt12_in_app: false,
-        warning: "A real Lightning wallet must protect channel state backups and have inbound liquidity. v0.27 keeps mainnet Lightning disabled.".to_string(),
+        warning: "A real Lightning wallet must protect channel state backups and have inbound liquidity. v0.80 keeps mainnet in-app Lightning disabled.".to_string(),
         next_steps: vec![
             "Initialize LDK Node on signet/testnet.".to_string(),
             "Generate a real test BOLT12 offer.".to_string(),
@@ -66,6 +66,6 @@ pub fn validate_bolt12_offer(offer: &str) -> Result<Bolt12OfferInfo> {
 
 pub fn create_in_app_bolt12_offer() -> Result<Bolt12OfferInfo> {
     Err(anyhow!(
-        "In-app BOLT12 offer generation is not enabled in v0.27. Next implementation step: LDK Node on signet/testnet, then a real test BOLT12 receive flow."
+        "In-app BOLT12 offer generation is not enabled in v0.80. Next implementation step: LDK Node on signet/testnet, then a real test BOLT12 receive flow."
     ))
 }

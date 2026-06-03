@@ -12,16 +12,16 @@ struct AppState {
 }
 
 #[tauri::command]
-fn create_bitcoin_wallet(label: String, state: State<AppState>) -> Result<wallet::WalletInfo, String> {
-    let wallet = wallet::MiningWallet::new_random(&label).map_err(|e| e.to_string())?;
+fn create_bitcoin_wallet(label: String, network: String, state: State<AppState>) -> Result<wallet::WalletInfo, String> {
+    let wallet = wallet::MiningWallet::new_random(&label, &network).map_err(|e| e.to_string())?;
     let info = wallet.info().map_err(|e| e.to_string())?;
     *state.wallet.lock().map_err(|_| "wallet state lock failed")? = Some(wallet);
     Ok(info)
 }
 
 #[tauri::command]
-fn restore_bitcoin_wallet(mnemonic: String, label: String, state: State<AppState>) -> Result<wallet::WalletInfo, String> {
-    let wallet = wallet::MiningWallet::from_mnemonic(&mnemonic, &label).map_err(|e| e.to_string())?;
+fn restore_bitcoin_wallet(mnemonic: String, label: String, network: String, state: State<AppState>) -> Result<wallet::WalletInfo, String> {
+    let wallet = wallet::MiningWallet::from_mnemonic(&mnemonic, &label, &network).map_err(|e| e.to_string())?;
     let info = wallet.info().map_err(|e| e.to_string())?;
     *state.wallet.lock().map_err(|_| "wallet state lock failed")? = Some(wallet);
     Ok(info)
@@ -44,8 +44,10 @@ fn generate_receive_address(state: State<AppState>) -> Result<wallet::ReceiveAdd
 }
 
 #[tauri::command]
-fn create_send_draft(input: wallet::SendDraftInput) -> Result<wallet::SendDraft, String> {
-    wallet::create_send_draft(input).map_err(|e| e.to_string())
+fn create_send_draft(input: wallet::SendDraftInput, state: State<AppState>) -> Result<wallet::SendDraft, String> {
+    let guard = state.wallet.lock().map_err(|_| "wallet state lock failed")?;
+    let wallet = guard.as_ref().ok_or("Create or restore a Bitcoin wallet first")?;
+    wallet.create_send_draft(input).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -59,18 +61,51 @@ fn export_encrypted_wallet_backup(passphrase: String, state: State<AppState>) ->
 #[tauri::command]
 fn restore_encrypted_wallet_backup(backup_json: String, passphrase: String, label: String, state: State<AppState>) -> Result<wallet::WalletInfo, String> {
     let backup: storage::EncryptedBackup = serde_json::from_str(&backup_json)
-        .map_err(|e| format!("Backup JSON is invalid: {e}"))?;
+        .map_err(|e| format!("Backup JSON was invalid: {e}"))?;
     let payload = storage::decrypt_wallet_backup(&backup, &passphrase).map_err(|e| e.to_string())?;
-    let wallet = wallet::MiningWallet::from_mnemonic(&payload.mnemonic, &label).map_err(|e| e.to_string())?;
+    let wallet = wallet::MiningWallet::from_backup_payload(&payload, &label).map_err(|e| e.to_string())?;
     let info = wallet.info().map_err(|e| e.to_string())?;
-    if info.address != payload.address {
-        return Err(format!(
-            "Restored wallet address {} does not match backup address {}. Check derivation/version.",
-            info.address, payload.address
-        ));
-    }
     *state.wallet.lock().map_err(|_| "wallet state lock failed")? = Some(wallet);
     Ok(info)
+}
+
+#[tauri::command]
+fn verify_encrypted_wallet_backup(backup_json: String, passphrase: String, state: State<AppState>) -> Result<wallet::BackupVerifyResult, String> {
+    let backup: storage::EncryptedBackup = serde_json::from_str(&backup_json)
+        .map_err(|e| format!("Backup JSON was invalid: {e}"))?;
+    let payload = storage::decrypt_wallet_backup(&backup, &passphrase).map_err(|e| e.to_string())?;
+    let guard = state.wallet.lock().map_err(|_| "wallet state lock failed")?;
+    let wallet = guard.as_ref().ok_or("Create or restore the current wallet before verifying a backup")?;
+    wallet.verify_backup_payload(&payload).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn save_wallet_to_disk(passphrase: String, state: State<AppState>) -> Result<storage::PersistedWalletStatus, String> {
+    let guard = state.wallet.lock().map_err(|_| "wallet state lock failed")?;
+    let wallet = guard.as_ref().ok_or("Create or restore a Bitcoin wallet first")?;
+    let payload = wallet.backup_payload().map_err(|e| e.to_string())?;
+    let encrypted = storage::encrypt_wallet_backup(&payload, &passphrase).map_err(|e| e.to_string())?;
+    storage::save_encrypted_wallet_to_disk(&encrypted).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn load_wallet_from_disk(passphrase: String, label: String, state: State<AppState>) -> Result<wallet::WalletInfo, String> {
+    let encrypted = storage::load_encrypted_wallet_from_disk().map_err(|e| e.to_string())?;
+    let payload = storage::decrypt_wallet_backup(&encrypted, &passphrase).map_err(|e| e.to_string())?;
+    let wallet = wallet::MiningWallet::from_backup_payload(&payload, &label).map_err(|e| e.to_string())?;
+    let info = wallet.info().map_err(|e| e.to_string())?;
+    *state.wallet.lock().map_err(|_| "wallet state lock failed")? = Some(wallet);
+    Ok(info)
+}
+
+#[tauri::command]
+fn get_wallet_persistence_status() -> Result<storage::PersistedWalletStatus, String> {
+    storage::persisted_wallet_status().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn delete_saved_wallet() -> Result<storage::PersistedWalletStatus, String> {
+    storage::delete_encrypted_wallet_from_disk().map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -127,6 +162,11 @@ pub fn run() {
             create_send_draft,
             export_encrypted_wallet_backup,
             restore_encrypted_wallet_backup,
+            verify_encrypted_wallet_backup,
+            save_wallet_to_disk,
+            load_wallet_from_disk,
+            get_wallet_persistence_status,
+            delete_saved_wallet,
             sign_message,
             create_lightning_wallet,
             get_lightning_wallet,

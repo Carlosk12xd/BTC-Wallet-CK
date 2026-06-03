@@ -4,6 +4,8 @@ use anyhow::{anyhow, Result};
 use argon2::Argon2;
 use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
 use serde::{Deserialize, Serialize};
+use std::fs;
+use std::path::PathBuf;
 
 use crate::wallet::WalletBackupPayload;
 
@@ -19,21 +21,11 @@ pub struct EncryptedBackup {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct StorageRoadmap {
-    pub current: String,
-    pub next: Vec<String>,
-}
-
-pub fn roadmap() -> StorageRoadmap {
-    StorageRoadmap {
-        current: "v0.6 can export and restore encrypted wallet backups using a passphrase. Non-secret UI data is persisted by the frontend in localStorage.".to_string(),
-        next: vec![
-            "Move wallet persistence into OS keychain / secure storage.".to_string(),
-            "Add encrypted SQLite for miner profiles, payout settings, and history.".to_string(),
-            "Require backup confirmation before enabling production mining workflows.".to_string(),
-            "Move restore-from-encrypted-backup into a polished production recovery wizard.".to_string(),
-        ],
-    }
+pub struct PersistedWalletStatus {
+    pub exists: bool,
+    pub path: String,
+    pub status: String,
+    pub warning: String,
 }
 
 pub fn encrypt_wallet_backup(payload: &WalletBackupPayload, passphrase: &str) -> Result<EncryptedBackup> {
@@ -61,16 +53,15 @@ pub fn encrypt_wallet_backup(payload: &WalletBackupPayload, passphrase: &str) ->
         .map_err(|_| anyhow!("failed to encrypt wallet backup"))?;
 
     Ok(EncryptedBackup {
-        version: "carlosk-wallet-backup-v0.6".to_string(),
+        version: "carlosk-wallet-backup-v0.80".to_string(),
         kdf: "argon2-default".to_string(),
         cipher: "aes-256-gcm".to_string(),
         salt_b64: B64.encode(salt),
         nonce_b64: B64.encode(nonce),
         ciphertext_b64: B64.encode(ciphertext),
-        warning: "Keep this encrypted backup and passphrase separate. Anyone with both can restore the mining wallet.".to_string(),
+        warning: "Keep this encrypted backup and passphrase separate. Anyone with both can restore the wallet.".to_string(),
     })
 }
-
 
 pub fn decrypt_wallet_backup(backup: &EncryptedBackup, passphrase: &str) -> Result<WalletBackupPayload> {
     if passphrase.trim().len() < 12 {
@@ -116,4 +107,49 @@ pub fn decrypt_wallet_backup(backup: &EncryptedBackup, passphrase: &str) -> Resu
     }
 
     Ok(payload)
+}
+
+pub fn save_encrypted_wallet_to_disk(backup: &EncryptedBackup) -> Result<PersistedWalletStatus> {
+    let path = wallet_store_path()?;
+    let parent = path.parent().ok_or_else(|| anyhow!("invalid wallet storage path"))?;
+    fs::create_dir_all(parent)?;
+    let json = serde_json::to_string_pretty(backup)?;
+    fs::write(&path, json)?;
+    persisted_status_with("Encrypted wallet saved locally. You will need the passphrase to unlock it after restart.")
+}
+
+pub fn load_encrypted_wallet_from_disk() -> Result<EncryptedBackup> {
+    let path = wallet_store_path()?;
+    let json = fs::read_to_string(&path)
+        .map_err(|e| anyhow!("No saved wallet found at {}: {e}", path.display()))?;
+    serde_json::from_str(&json).map_err(|e| anyhow!("Saved wallet file is not valid CarlosK Wallet backup JSON: {e}"))
+}
+
+pub fn delete_encrypted_wallet_from_disk() -> Result<PersistedWalletStatus> {
+    let path = wallet_store_path()?;
+    if path.exists() {
+        fs::remove_file(&path)?;
+    }
+    persisted_status_with("Saved encrypted wallet file removed from local disk.")
+}
+
+pub fn persisted_wallet_status() -> Result<PersistedWalletStatus> {
+    persisted_status_with("Local encrypted wallet storage status loaded.")
+}
+
+fn persisted_status_with(status: &str) -> Result<PersistedWalletStatus> {
+    let path = wallet_store_path()?;
+    Ok(PersistedWalletStatus {
+        exists: path.exists(),
+        path: path.display().to_string(),
+        status: status.to_string(),
+        warning: "This file is encrypted, but the passphrase protects it. Losing the passphrase means the app cannot decrypt the saved wallet.".to_string(),
+    })
+}
+
+fn wallet_store_path() -> Result<PathBuf> {
+    let home = std::env::var("HOME")
+        .or_else(|_| std::env::var("USERPROFILE"))
+        .map_err(|_| anyhow!("Could not find HOME/USERPROFILE for local wallet storage"))?;
+    Ok(PathBuf::from(home).join(".carlosk-wallet").join("wallet.encrypted.json"))
 }

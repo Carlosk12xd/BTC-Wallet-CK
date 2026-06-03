@@ -13,6 +13,7 @@ pub struct MiningWallet {
     mnemonic: Mnemonic,
     wallet: Wallet,
     label: String,
+    network: Network,
     next_external_index: u32,
 }
 
@@ -33,10 +34,12 @@ pub struct WalletBackupPayload {
 
 #[derive(Debug, Serialize)]
 pub struct WalletInfo {
+    pub label: String,
     pub mnemonic: String,
     pub address: String,
     pub network: String,
     pub derivation: String,
+    pub next_external_index: u32,
     pub warning: String,
 }
 
@@ -73,35 +76,60 @@ pub struct SignatureResponse {
     pub format: String,
 }
 
+#[derive(Debug, Serialize)]
+pub struct BackupVerifyResult {
+    pub backup_address: String,
+    pub current_address: String,
+    pub same_address: bool,
+    pub network: String,
+    pub next_external_index: u32,
+    pub status: String,
+}
+
 impl MiningWallet {
-    pub fn new_random(label: &str) -> Result<Self> {
+    pub fn new_random(label: &str, network_choice: &str) -> Result<Self> {
         let mnemonic = Mnemonic::generate_in(Language::English, 12)?;
-        Self::from_mnemonic_obj(mnemonic, label, 1)
+        let network = parse_network(network_choice)?;
+        Self::from_mnemonic_obj(mnemonic, label, network, 1)
     }
 
-    pub fn from_mnemonic(words: &str, label: &str) -> Result<Self> {
+    pub fn from_mnemonic(words: &str, label: &str, network_choice: &str) -> Result<Self> {
         let mnemonic = Mnemonic::parse_in_normalized(Language::English, words.trim())?;
-        Self::from_mnemonic_obj(mnemonic, label, 1)
+        let network = parse_network(network_choice)?;
+        Self::from_mnemonic_obj(mnemonic, label, network, 1)
     }
 
-    fn from_mnemonic_obj(mnemonic: Mnemonic, label: &str, next_external_index: u32) -> Result<Self> {
+    pub fn from_backup_payload(payload: &WalletBackupPayload, label_override: &str) -> Result<Self> {
+        let label = if label_override.trim().is_empty() {
+            payload.label.as_str()
+        } else {
+            label_override
+        };
+        let mnemonic = Mnemonic::parse_in_normalized(Language::English, payload.mnemonic.trim())?;
+        let network = parse_network(&payload.network)?;
+        Self::from_mnemonic_obj(mnemonic, label, network, payload.next_external_index.max(1))
+    }
+
+    fn from_mnemonic_obj(mnemonic: Mnemonic, label: &str, network: Network, next_external_index: u32) -> Result<Self> {
         let seed = mnemonic.to_seed_normalized("");
-        let xprv = Xpriv::new_master(Network::Bitcoin, &seed)?;
+        let xprv = Xpriv::new_master(network, &seed)?;
+        let coin_type = if network == Network::Bitcoin { 0 } else { 1 };
 
         // Native SegWit BIP84 account 0.
-        // External path: m/84'/0'/0'/0/*
-        // Internal path: m/84'/0'/0'/1/*
-        let descriptor = format!("wpkh({}/84'/0'/0'/0/*)", xprv);
-        let change_descriptor = format!("wpkh({}/84'/0'/0'/1/*)", xprv);
+        // Mainnet external path: m/84'/0'/0'/0/*
+        // Testnet/signet external path: m/84'/1'/0'/0/*
+        let descriptor = format!("wpkh({}/84'/{}'/0'/0/*)", xprv, coin_type);
+        let change_descriptor = format!("wpkh({}/84'/{}'/0'/1/*)", xprv, coin_type);
 
         let wallet = Wallet::create(descriptor, change_descriptor)
-            .network(Network::Bitcoin)
+            .network(network)
             .create_wallet_no_persist()?;
 
         Ok(Self {
             mnemonic,
             wallet,
             label: sanitize_label(label),
+            network,
             next_external_index,
         })
     }
@@ -109,11 +137,13 @@ impl MiningWallet {
     pub fn info(&self) -> Result<WalletInfo> {
         let address = self.wallet.peek_address(KeychainKind::External, 0).address.to_string();
         Ok(WalletInfo {
+            label: self.label.clone(),
             mnemonic: self.mnemonic.to_string(),
             address,
-            network: "bitcoin-mainnet".to_string(),
-            derivation: "m/84'/0'/0'/0/0".to_string(),
-            warning: "Development wallet. v0.27 is a simplified core-wallet UI. Do not store meaningful funds until persistence, sync, transaction broadcast, and Lightning recovery are fully tested.".to_string(),
+            network: network_id(self.network).to_string(),
+            derivation: format!("m/84'/{}'/0'/0/0", if self.network == Network::Bitcoin { 0 } else { 1 }),
+            next_external_index: self.next_external_index,
+            warning: "Development wallet. v0.80 adds encrypted local persistence, address generation, network-aware chain lookup, fee lookup, and raw transaction broadcast. Do not store meaningful funds until chain sync, PSBT creation, transaction signing, and broadcast are fully tested.".to_string(),
         })
     }
 
@@ -124,8 +154,8 @@ impl MiningWallet {
         Ok(ReceiveAddressInfo {
             address,
             index,
-            network: "bitcoin-mainnet".to_string(),
-            warning: "Receive address generated locally. The app does not yet sync the chain or confirm received funds.".to_string(),
+            network: network_id(self.network).to_string(),
+            warning: "Receive address generated locally. v0.80 can sync this address with public Esplora APIs from the Send/Receive tab. Save encrypted wallet storage to persist the address index after restart.".to_string(),
         })
     }
 
@@ -134,21 +164,69 @@ impl MiningWallet {
         let created_at_unix = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
         Ok(WalletBackupPayload {
             app: "CarlosK Wallet".to_string(),
-            backup_version: "0.27".to_string(),
+            backup_version: "0.80".to_string(),
             label: self.label.clone(),
             mnemonic: self.mnemonic.to_string(),
             address,
-            derivation: "m/84'/0'/0'/0/0".to_string(),
-            network: "bitcoin-mainnet".to_string(),
+            derivation: format!("m/84'/{}'/0'/0/0", if self.network == Network::Bitcoin { 0 } else { 1 }),
+            network: network_id(self.network).to_string(),
             next_external_index: self.next_external_index,
             created_at_unix,
             warning: "This backup contains the seed phrase after decryption. Keep it offline and private.".to_string(),
         })
     }
 
+    pub fn verify_backup_payload(&self, payload: &WalletBackupPayload) -> Result<BackupVerifyResult> {
+        let backup_wallet = MiningWallet::from_backup_payload(payload, &payload.label)?;
+        let backup_address = backup_wallet.info()?.address;
+        let current = self.info()?;
+        let same_address = backup_address == current.address && payload.network == current.network;
+        Ok(BackupVerifyResult {
+            backup_address,
+            current_address: current.address,
+            same_address,
+            network: current.network,
+            next_external_index: payload.next_external_index,
+            status: if same_address {
+                "Backup restore proof passed. The encrypted backup recreates the same wallet address.".to_string()
+            } else {
+                "Backup restore proof failed. The backup does not recreate the same current wallet address/network.".to_string()
+            },
+        })
+    }
+
+    pub fn create_send_draft(&self, input: SendDraftInput) -> Result<SendDraft> {
+        let checked_address = Address::from_str(input.to_address.trim())?
+            .require_network(self.network)
+            .map_err(|e| anyhow!("recipient address network mismatch: {e}"))?;
+
+        if input.amount_sats == 0 {
+            return Err(anyhow!("Amount must be greater than 0 sats"));
+        }
+        if input.fee_rate_sat_vb <= 0.0 {
+            return Err(anyhow!("Fee rate must be greater than 0 sat/vB"));
+        }
+
+        Ok(SendDraft {
+            to_address: checked_address.to_string(),
+            amount_sats: input.amount_sats,
+            fee_rate_sat_vb: input.fee_rate_sat_vb,
+            ready_to_broadcast: false,
+            status: "Send draft validated against the current wallet network. Transaction creation/broadcast is still locked until chain sync and PSBT signing are implemented.".to_string(),
+            next_steps: vec![
+                "Add Esplora/Electrum chain sync.".to_string(),
+                "Detect confirmed balance and spendable UTXOs.".to_string(),
+                "Build a PSBT with BDK.".to_string(),
+                "Sign the PSBT locally.".to_string(),
+                "Broadcast only after fee and recipient confirmation screens are implemented.".to_string(),
+            ],
+            warning: "Do not use this to send real BTC yet. v0.80 validates the recipient network and amount. Use the raw transaction broadcast box only with a transaction you reviewed and signed intentionally.".to_string(),
+        })
+    }
+
     pub fn sign_bip322_simple(&mut self, message: &str, address: &str) -> Result<SignatureResponse> {
         let checked_address = Address::from_str(address)?
-            .require_network(Network::Bitcoin)
+            .require_network(self.network)
             .map_err(|e| anyhow!("address network mismatch: {e}"))?;
 
         let proof = self.wallet.sign_message(
@@ -171,33 +249,23 @@ impl MiningWallet {
     }
 }
 
-pub fn create_send_draft(input: SendDraftInput) -> Result<SendDraft> {
-    let checked_address = Address::from_str(input.to_address.trim())?
-        .require_network(Network::Bitcoin)
-        .map_err(|e| anyhow!("recipient address network mismatch: {e}"))?;
-
-    if input.amount_sats == 0 {
-        return Err(anyhow!("Amount must be greater than 0 sats"));
+pub fn parse_network(choice: &str) -> Result<Network> {
+    match choice.trim().to_lowercase().as_str() {
+        "bitcoin" | "mainnet" | "bitcoin-mainnet" => Ok(Network::Bitcoin),
+        "testnet" | "bitcoin-testnet" => Ok(Network::Testnet),
+        "signet" | "bitcoin-signet" => Ok(Network::Signet),
+        other => Err(anyhow!("Unsupported Bitcoin network: {other}. Use bitcoin, testnet, or signet.")),
     }
-    if input.fee_rate_sat_vb <= 0.0 {
-        return Err(anyhow!("Fee rate must be greater than 0 sat/vB"));
-    }
+}
 
-    Ok(SendDraft {
-        to_address: checked_address.to_string(),
-        amount_sats: input.amount_sats,
-        fee_rate_sat_vb: input.fee_rate_sat_vb,
-        ready_to_broadcast: false,
-        status: "Send draft validated, but transaction creation/broadcast is not enabled in v0.27.".to_string(),
-        next_steps: vec![
-            "Add chain sync against Esplora or Electrum.".to_string(),
-            "List wallet UTXOs and confirmed balance.".to_string(),
-            "Build a PSBT with BDK.".to_string(),
-            "Sign the PSBT locally.".to_string(),
-            "Broadcast only after fee and recipient confirmation screens are implemented.".to_string(),
-        ],
-        warning: "Do not use this to send real BTC yet. v0.27 validates the send form but does not broadcast transactions.".to_string(),
-    })
+pub fn network_id(network: Network) -> &'static str {
+    match network {
+        Network::Bitcoin => "bitcoin",
+        Network::Testnet => "testnet",
+        Network::Signet => "signet",
+        Network::Regtest => "regtest",
+        _ => "unknown",
+    }
 }
 
 fn sanitize_label(label: &str) -> String {

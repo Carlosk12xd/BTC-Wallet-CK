@@ -1,37 +1,31 @@
-# CarlosK Wallet Roadmap
+# Roadmap
 
-## v0.27 current
+## Current: v0.80 Wallet MVP
 
-Core wallet reset. The app now focuses only on:
+The app now has real wallet foundation plus real chain lookup and raw transaction broadcast.
 
-- BTC wallet creation/restoration
-- BTC receive addresses
-- BTC send draft validation
-- Lightning/BOLT12 work area
-- BIP-322 signatures
+## v0.90 target
 
-## v0.28 target
+- Build PSBTs from synced wallet UTXOs.
+- Sign PSBTs locally.
+- Extract final raw transaction only after user confirmation.
+- Broadcast app-built transactions.
+- Add QR code rendering for Bitcoin URI.
 
-Implement real on-chain wallet sync and balances:
+## v1.0 target
 
-- Add Esplora or Electrum backend configuration.
-- Sync wallet UTXOs.
-- Show confirmed/unconfirmed balance.
-- Show transaction history.
+- Mainnet-safe on-chain wallet flow.
+- Create/restore wallet.
+- Receive addresses.
+- Chain sync and balance.
+- Build, sign, and broadcast wallet transactions.
+- BIP-322 signatures.
+- External BOLT12 receive saved and validated.
 
-## v0.29 target
+## Post-1.0 Lightning target
 
-Implement real BTC send flow:
-
-- Build PSBT with BDK.
-- Show fee and recipient confirmation screen.
-- Sign transaction locally.
-- Broadcast through Esplora/Electrum.
-
-## Lightning/BOLT12 target
-
-- Start LDK Node on signet/testnet.
-- Generate a real signet/testnet BOLT12 offer.
-- Receive a test payment.
-- Prove backup/restore.
-- Only then consider mainnet embedded BOLT12.
+- LDK Node signet/testnet wallet.
+- Real BOLT12 offer generation.
+- Real test Lightning receive.
+- Backup/restore proof.
+- Only then consider mainnet embedded Lightning.

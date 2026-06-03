@@ -1,34 +1,41 @@
-# CarlosK Wallet v0.27
+# CarlosK Wallet v0.80 Wallet MVP
 
-CarlosK Wallet is now scoped down to the core product: a simple self-custody Bitcoin + BOLT12 desktop wallet.
+CarlosK Wallet is now focused on the real product goal: a simple self-custody Bitcoin + BOLT12 desktop wallet.
 
-## Core goals
+## Core features in this version
 
-1. Create a new BTC on-chain wallet/address.
-2. Receive BTC on-chain by generating fresh addresses.
-3. Send BTC on-chain. In v0.27 this is a validated send draft only; real sync, PSBT creation, signing, and broadcast are next.
-4. Create a Lightning wallet profile and prepare for in-app BOLT12 receiving.
-5. Save/validate external BOLT12 offers while embedded BOLT12 is built safely through LDK signet/testnet first.
-6. Sign messages with BIP-322 Simple.
+- Create a new Bitcoin wallet on mainnet, testnet, or signet.
+- Restore a Bitcoin wallet from seed.
+- Save and load an encrypted local wallet file.
+- Export and verify encrypted backup JSON.
+- Generate fresh native SegWit receive addresses.
+- Sync the active address with public mempool.space Esplora APIs.
+- Show real confirmed, mempool, and total detected balance.
+- Show UTXOs for the active address.
+- Show recent transaction history for the active address.
+- Load fee estimates.
+- Create Bitcoin payment URI text.
+- Validate send drafts against the current wallet network.
+- Broadcast a signed raw transaction hex.
+- Save an external BOLT12 offer locally.
+- Sign messages with BIP-322 Simple.
 
-## What was removed from the main UI
+## Still locked before 1.0
 
-The old mining dashboards, OCEAN wizards, payout estimators, runbooks, release gates, and long MVP checklists are no longer shown in the app. The source files can remain temporarily for reference, but the app experience is now only four tabs:
-
-- Wallet
-- Send / Receive
-- Lightning
-- Signatures
+- Automatic wallet-built sends are not enabled yet.
+- The app does not yet build/sign/broadcast PSBTs from wallet UTXOs.
+- In-app BOLT12 generation is still locked.
+- Embedded Lightning receive is still locked until signet/testnet channel recovery is proven.
 
 ## Run locally
 
 ```bash
-npm install --no-audit --no-fund
+npm install --no-audit --no-fund --registry=https://registry.npmjs.org/
 npm run frontend:build
 npm run check:tauri
 npm run dev
 ```
 
-## Important safety status
+## Important security note
 
-v0.27 is a cleaner core wallet prototype. Do not store meaningful funds yet. Real on-chain sending and embedded BOLT12 receiving still need sync, broadcast, LDK signet/testnet receive, and backup/recovery tests.
+Use testnet or signet while testing. The raw transaction broadcast tool is real. Only broadcast transaction hex you intentionally created and reviewed.

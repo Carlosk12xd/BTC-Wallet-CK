@@ -1,11 +1,10 @@
 # Security
 
-v0.27 is still a development wallet.
+## Main rules
 
-## Rules
-
-- Do not store meaningful BTC yet.
-- Do not paste seed phrases into websites.
-- Keep encrypted backups and passphrases separate.
-- Real BTC sending remains disabled until sync, PSBT, signing, confirmation, and broadcast are implemented.
-- Embedded mainnet Lightning remains disabled until LDK signet/testnet receive and recovery work.
+- Do not use meaningful mainnet funds until v1.0 has app-built PSBT sending and review screens.
+- Prefer signet/testnet for testing.
+- Never share seed phrases.
+- Never share backup passphrases.
+- The raw broadcast tool is real; only broadcast transaction hex you intentionally created and reviewed.
+- In-app Lightning remains locked until signet/testnet backup and recovery are proven.

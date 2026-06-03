@@ -1,12 +1,12 @@
-# Build Notes v0.27
+# Build Notes v0.80
 
-Run:
+Run on your Mac:
 
 ```bash
-npm install --no-audit --no-fund
+npm install --no-audit --no-fund --registry=https://registry.npmjs.org/
 npm run frontend:build
 npm run check:tauri
 npm run dev
 ```
 
-If Tauri complains about `frontendDist`, run `npm run frontend:build` first so the `dist/` folder exists.
+This version intentionally does not include `package-lock.json` to avoid private registry lockfile problems.

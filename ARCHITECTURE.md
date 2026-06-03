@@ -2,23 +2,20 @@
 
 ## Frontend
 
-React + TypeScript with four tabs:
-
-- Wallet
-- Send / Receive
-- Lightning
-- Signatures
+- `src/main.tsx`: 4-tab wallet UI.
+- `src/styles.css`: visual design.
 
 ## Backend
 
-Tauri + Rust. v0.27 only wires the core modules into the running app:
+- `src-tauri/src/lib.rs`: Tauri command bridge.
+- `src-tauri/src/wallet.rs`: BIP39/BDK wallet creation, restore, receive addresses, send draft validation, BIP-322 signing.
+- `src-tauri/src/storage.rs`: encrypted backups and encrypted local wallet persistence.
+- `src-tauri/src/core_lightning.rs`: BOLT12 placeholder/profile layer.
 
-- `wallet.rs`
-- `storage.rs`
-- `core_lightning.rs`
+## v0.28 storage
 
-Older miner/OCEAN prototype modules may still exist in the source tree temporarily, but they are no longer part of the main UI or invoke handler.
+The saved encrypted wallet file is stored at:
 
-## Security boundary
+`~/.carlosk-wallet/wallet.encrypted.json`
 
-The app must never send seed phrases to a server. Signing stays local. Lightning mainnet stays locked until testnet/signet recovery is proven.
+The passphrase is never saved by the app.
