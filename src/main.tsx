@@ -59,6 +59,31 @@ type SendDraft = {
   warning: string;
 };
 
+type BackendSyncReport = {
+  network: string;
+  esplora_url: string;
+  total_sats: number;
+  confirmed_sats: number;
+  pending_sats: number;
+  utxo_count: number;
+  utxo_sats: number;
+  status: string;
+  warning: string;
+};
+
+type SignedTransactionResult = {
+  txid: string;
+  tx_hex: string;
+  recipient: string;
+  amount_sats: number;
+  fee_sats: number;
+  fee_rate_sat_vb: number;
+  finalized: boolean;
+  ready_to_broadcast: boolean;
+  status: string;
+  warning: string;
+};
+
 type SignatureResponse = {
   signature: string;
   address: string;
@@ -224,7 +249,7 @@ function copy(value: string) {
 
 function App() {
   const [activeTab, setActiveTab] = useState<Tab>('wallet');
-  const [status, setStatus] = useState('CarlosK Wallet v0.80 is running. Real features: wallet persistence, chain sync, balance lookup, fee lookup, tx history, UTXOs, raw tx broadcast, BOLT12 storage, and BIP-322 signing.');
+  const [status, setStatus] = useState('CarlosK Wallet v0.90 is running. Real features: wallet persistence, backend sync, balance lookup, UTXOs, local signed transaction creation, raw tx broadcast, BOLT12 storage, and BIP-322 signing.');
 
   const [wallet, setWallet] = useState<WalletInfo | null>(null);
   const [walletLabel, setWalletLabel] = useState('CarlosK');
@@ -249,6 +274,10 @@ function App() {
   const [sendAmountSats, setSendAmountSats] = useState('1000');
   const [sendFeeRate, setSendFeeRate] = useState('5');
   const [sendDraft, setSendDraft] = useState<SendDraft | null>(null);
+  const [backendSync, setBackendSync] = useState<BackendSyncReport | null>(null);
+  const [signedTx, setSignedTx] = useState<SignedTransactionResult | null>(null);
+  const [customEsploraUrl, setCustomEsploraUrl] = useState('');
+  const [creatingSignedTx, setCreatingSignedTx] = useState(false);
   const [chainBalance, setChainBalance] = useState<ChainBalance | null>(null);
   const [utxos, setUtxos] = useState<UtxoInfo[]>([]);
   const [txHistory, setTxHistory] = useState<TxSummary[]>([]);
@@ -454,6 +483,52 @@ function App() {
     }
   }
 
+  async function syncBackendWallet() {
+    try {
+      if (!wallet) {
+        setStatus('Create or restore a wallet first.');
+        return;
+      }
+      setStatus('Running backend wallet sync with Esplora. This may take a moment...');
+      const result = await invoke<BackendSyncReport>('sync_wallet_backend', {
+        esploraUrl: customEsploraUrl.trim() || null
+      });
+      setBackendSync(result);
+      setStatus(result.status);
+    } catch (err) {
+      setStatus(`Backend wallet sync failed: ${String(err)}`);
+    }
+  }
+
+  async function createSignedSendTransaction() {
+    try {
+      if (!wallet) {
+        setStatus('Create or restore a wallet first.');
+        return;
+      }
+      if (!backendSync) {
+        setStatus('Run Backend Sync first so the wallet knows its spendable UTXOs.');
+        return;
+      }
+      setCreatingSignedTx(true);
+      setStatus('Building PSBT, signing locally, and extracting signed transaction...');
+      const result = await invoke<SignedTransactionResult>('create_signed_send_transaction', {
+        input: {
+          to_address: sendTo.trim(),
+          amount_sats: Number(sendAmountSats),
+          fee_rate_sat_vb: Number(sendFeeRate)
+        }
+      });
+      setSignedTx(result);
+      setRawTxHex(result.tx_hex);
+      setStatus(result.status);
+    } catch (err) {
+      setStatus(`Signed transaction creation failed: ${String(err)}`);
+    } finally {
+      setCreatingSignedTx(false);
+    }
+  }
+
   async function syncChainForCurrentAddress() {
     try {
       const address = receiveAddress?.address || wallet?.address || '';
@@ -594,9 +669,9 @@ function App() {
     <main>
       <section className="hero">
         <div>
-          <p className="eyebrow">v0.80 Wallet MVP</p>
+          <p className="eyebrow">v0.90 Wallet MVP</p>
           <h1>CarlosK Wallet</h1>
-          <p className="subtitle">A simple self-custody Bitcoin + BOLT12 desktop wallet. v0.80 adds real chain lookup, balance detection, fee estimates, transaction history, UTXO viewing, and raw transaction broadcast on top of encrypted wallet persistence.</p>
+          <p className="subtitle">A simple self-custody Bitcoin + BOLT12 desktop wallet. v0.90 adds backend wallet sync plus real local PSBT signing and signed transaction creation on top of balance lookup, UTXOs, history, and raw broadcast.</p>
         </div>
         <div className="status-card">
           <strong>Status</strong>
@@ -775,12 +850,29 @@ function App() {
           </div>
 
           <div className="card">
+            <h2>Backend wallet sync</h2>
+            <p className="muted">This is the real BDK/Esplora sync used by the signer. Run this after funding your wallet and before creating a signed send transaction.</p>
+            <label>Optional custom Esplora API URL<input value={customEsploraUrl} onChange={(e) => setCustomEsploraUrl(e.target.value)} placeholder={apiBase(wallet?.network || walletNetwork)} /></label>
+            <button onClick={syncBackendWallet}>Backend Sync Wallet</button>
+            {backendSync && (
+              <div className="result">
+                <p><strong>{backendSync.status}</strong></p>
+                <p>Confirmed: {formatSats(backendSync.confirmed_sats)} · Pending: {formatSats(backendSync.pending_sats)} · Total: {formatSats(backendSync.total_sats)}</p>
+                <p>UTXOs: {backendSync.utxo_count} · UTXO value: {formatSats(backendSync.utxo_sats)}</p>
+                <p>Network: {backendSync.network}</p>
+                <code>{backendSync.esplora_url}</code>
+                <p className="warning">{backendSync.warning}</p>
+              </div>
+            )}
+          </div>
+
+          <div className="card">
             <h2>Send BTC on-chain</h2>
-            <p className="warning">v0.80 validates the recipient and adds real network sync, fee lookup, UTXO/transaction history, and raw signed transaction broadcast. Automatic wallet-built sends are still locked until PSBT creation is implemented safely.</p>
+            <p className="warning">v0.90 can create a real signed wallet transaction after Backend Sync. Test with signet/testnet first. Broadcasting spends funds.</p>
             <label>Recipient BTC address<input value={sendTo} onChange={(e) => setSendTo(e.target.value)} /></label>
             <label>Amount sats<input value={sendAmountSats} onChange={(e) => setSendAmountSats(e.target.value)} /></label>
             <label>Fee rate sat/vB<input value={sendFeeRate} onChange={(e) => setSendFeeRate(e.target.value)} /></label>
-            <button onClick={createSendDraft}>Validate Send Draft</button>
+            <div className="row"><button onClick={createSendDraft}>Validate Send Draft</button><button className="danger" onClick={createSignedSendTransaction} disabled={creatingSignedTx}>{creatingSignedTx ? 'Signing...' : 'Build & Sign Transaction'}</button></div>
             {sendDraft && (
               <div className="result">
                 <p><strong>{sendDraft.status}</strong></p>
@@ -788,6 +880,18 @@ function App() {
                 <p>{sendDraft.amount_sats} sats · {sendDraft.fee_rate_sat_vb} sat/vB</p>
                 <ul>{sendDraft.next_steps.map((step) => <li key={step}>{step}</li>)}</ul>
                 <p className="warning">{sendDraft.warning}</p>
+              </div>
+            )}
+            {signedTx && (
+              <div className="result">
+                <p><strong>{signedTx.status}</strong></p>
+                <p>TXID: <code>{short(signedTx.txid, 16, 16)}</code></p>
+                <p>Recipient: <code>{short(signedTx.recipient)}</code></p>
+                <p>Amount: {formatSats(signedTx.amount_sats)} · Fee: {formatSats(signedTx.fee_sats)} · Fee rate: {signedTx.fee_rate_sat_vb} sat/vB</p>
+                <p>Finalized: {signedTx.finalized ? 'Yes' : 'No'} · Ready to broadcast: {signedTx.ready_to_broadcast ? 'Yes' : 'No'}</p>
+                <textarea readOnly value={signedTx.tx_hex} />
+                <div className="row"><button className="secondary" onClick={() => copy(signedTx.tx_hex)}>Copy Signed TX Hex</button><button className="secondary" onClick={() => setRawTxHex(signedTx.tx_hex)}>Load Into Broadcast Box</button></div>
+                <p className="warning">{signedTx.warning}</p>
               </div>
             )}
           </div>
@@ -828,7 +932,7 @@ function App() {
 
           <div className="card">
             <h2>BOLT12 receive</h2>
-            <p>For v0.80, save and persist an external BOLT12 offer. In-app BOLT12 generation remains locked until LDK signet/testnet receive and channel recovery are proven.</p>
+            <p>For v0.90, save and persist an external BOLT12 offer. In-app BOLT12 generation remains locked until LDK signet/testnet receive and channel recovery are proven.</p>
             <label>External BOLT12 offer<textarea value={bolt12Input} onChange={(e) => setBolt12Input(e.target.value)} placeholder="lno1..." /></label>
             <div className="row"><button onClick={saveBolt12Offer}>Save External BOLT12 Offer</button><button className="secondary" onClick={requestInAppBolt12Offer}>Try In-App BOLT12</button></div>
             {bolt12Offer && (

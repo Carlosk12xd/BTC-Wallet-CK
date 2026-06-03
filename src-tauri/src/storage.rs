@@ -53,7 +53,7 @@ pub fn encrypt_wallet_backup(payload: &WalletBackupPayload, passphrase: &str) ->
         .map_err(|_| anyhow!("failed to encrypt wallet backup"))?;
 
     Ok(EncryptedBackup {
-        version: "carlosk-wallet-backup-v0.80".to_string(),
+        version: "carlosk-wallet-backup-v0.90".to_string(),
         kdf: "argon2-default".to_string(),
         cipher: "aes-256-gcm".to_string(),
         salt_b64: B64.encode(salt),

@@ -51,6 +51,20 @@ fn create_send_draft(input: wallet::SendDraftInput, state: State<AppState>) -> R
 }
 
 #[tauri::command]
+fn sync_wallet_backend(esplora_url: Option<String>, state: State<AppState>) -> Result<wallet::BackendSyncReport, String> {
+    let mut guard = state.wallet.lock().map_err(|_| "wallet state lock failed")?;
+    let wallet = guard.as_mut().ok_or("Create or restore a Bitcoin wallet first")?;
+    wallet.sync_with_esplora(esplora_url).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn create_signed_send_transaction(input: wallet::SendDraftInput, state: State<AppState>) -> Result<wallet::SignedTransactionResult, String> {
+    let mut guard = state.wallet.lock().map_err(|_| "wallet state lock failed")?;
+    let wallet = guard.as_mut().ok_or("Create or restore a Bitcoin wallet first")?;
+    wallet.create_signed_transaction(input).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 fn export_encrypted_wallet_backup(passphrase: String, state: State<AppState>) -> Result<storage::EncryptedBackup, String> {
     let guard = state.wallet.lock().map_err(|_| "wallet state lock failed")?;
     let wallet = guard.as_ref().ok_or("Create or restore a Bitcoin wallet first")?;
@@ -160,6 +174,8 @@ pub fn run() {
             get_current_wallet,
             generate_receive_address,
             create_send_draft,
+            sync_wallet_backend,
+            create_signed_send_transaction,
             export_encrypted_wallet_backup,
             restore_encrypted_wallet_backup,
             verify_encrypted_wallet_backup,

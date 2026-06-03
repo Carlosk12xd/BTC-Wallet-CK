@@ -1,6 +1,6 @@
 [package]
 name = "carlosk-wallet"
-version = "0.80.0"
+version = "0.90.0"
 description = "CarlosK Wallet: simple self-custody Bitcoin + BOLT12 desktop wallet"
 authors = ["Carlos Knight"]
 edition = "2021"
@@ -21,6 +21,7 @@ bip39 = { version = "2", features = ["rand"] }
 bitcoin = "0.32.6"
 bdk_wallet = { version = "2.2.0", features = ["rusqlite"] }
 bdk_bip322 = "0.1.0"
+bdk_esplora = { version = "0.22.1", features = ["blocking"] }
 aes-gcm = "0.10"
 argon2 = "0.5"
 base64 = "0.22"
@@ -32,4 +33,4 @@ custom-protocol = ["tauri/custom-protocol"]
 ldk-node-experimental = []
 ldk-node-signet = []
 ldk-node-signet-runtime = ["dep:ldk-node"]
-# v0.80 core reset: LDK remains optional and mainnet Lightning is still locked until signet/testnet recovery is proven.
+# v0.90 wallet MVP: LDK remains optional and mainnet Lightning is still locked until signet/testnet recovery is proven.

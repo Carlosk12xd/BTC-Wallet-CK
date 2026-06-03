@@ -1,31 +1,28 @@
 # Roadmap
 
-## Current: v0.80 Wallet MVP
+## v0.90 status
 
-The app now has real wallet foundation plus real chain lookup and raw transaction broadcast.
+The on-chain wallet is now close to MVP:
 
-## v0.90 target
+- receive address generation: implemented
+- encrypted wallet persistence: implemented
+- frontend chain lookup: implemented
+- backend BDK/Esplora sync: implemented
+- local signed transaction creation: implemented
+- raw transaction broadcast: implemented
 
-- Build PSBTs from synced wallet UTXOs.
-- Sign PSBTs locally.
-- Extract final raw transaction only after user confirmation.
-- Broadcast app-built transactions.
-- Add QR code rendering for Bitcoin URI.
+## v0.95 target
+
+- Add safer confirmation modal before broadcast.
+- Add automatic post-broadcast resync.
+- Add send transaction review screen with full outputs and fee.
+- Add QR codes for receiving.
+- Add transaction export/import helpers.
 
 ## v1.0 target
 
-- Mainnet-safe on-chain wallet flow.
-- Create/restore wallet.
-- Receive addresses.
-- Chain sync and balance.
-- Build, sign, and broadcast wallet transactions.
-- BIP-322 signatures.
-- External BOLT12 receive saved and validated.
+A simple self-custody Bitcoin desktop wallet with safe create/restore, receive, sync, send, broadcast, backup, and signatures.
 
-## Post-1.0 Lightning target
+## After v1.0
 
-- LDK Node signet/testnet wallet.
-- Real BOLT12 offer generation.
-- Real test Lightning receive.
-- Backup/restore proof.
-- Only then consider mainnet embedded Lightning.
+Continue BOLT12/LDK work on signet/testnet before mainnet Lightning.

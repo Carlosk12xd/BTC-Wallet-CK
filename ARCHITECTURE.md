@@ -1,21 +1,20 @@
-# Architecture
+# Architecture v0.90
 
 ## Frontend
 
-- `src/main.tsx`: 4-tab wallet UI.
-- `src/styles.css`: visual design.
+- React + TypeScript
+- Wallet, Send/Receive, Lightning, and Signatures tabs
+- Frontend mempool.space address lookup for display
+- Raw transaction broadcast UI
 
 ## Backend
 
-- `src-tauri/src/lib.rs`: Tauri command bridge.
-- `src-tauri/src/wallet.rs`: BIP39/BDK wallet creation, restore, receive addresses, send draft validation, BIP-322 signing.
-- `src-tauri/src/storage.rs`: encrypted backups and encrypted local wallet persistence.
-- `src-tauri/src/core_lightning.rs`: BOLT12 placeholder/profile layer.
+- Rust/Tauri commands
+- BDK wallet for descriptors, address generation, signing, and PSBT/final transaction creation
+- BDK Esplora for backend wallet sync
+- Encrypted wallet persistence with Argon2 + AES-256-GCM
+- BIP-322 message signing
 
-## v0.28 storage
+## Send flow
 
-The saved encrypted wallet file is stored at:
-
-`~/.carlosk-wallet/wallet.encrypted.json`
-
-The passphrase is never saved by the app.
+Backend sync updates the BDK wallet state. The send command builds a transaction using BDK, signs it locally, finalizes the PSBT, extracts the raw transaction, and returns the hex for user review/broadcast.

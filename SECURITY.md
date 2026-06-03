@@ -1,10 +1,13 @@
-# Security
+# Security Policy
 
-## Main rules
+v0.90 can create real signed transactions. Treat the app as a development wallet until you have tested receive, backup, restore, sync, signed transaction creation, broadcast, and recovery on signet/testnet.
 
-- Do not use meaningful mainnet funds until v1.0 has app-built PSBT sending and review screens.
-- Prefer signet/testnet for testing.
-- Never share seed phrases.
-- Never share backup passphrases.
-- The raw broadcast tool is real; only broadcast transaction hex you intentionally created and reviewed.
-- In-app Lightning remains locked until signet/testnet backup and recovery are proven.
+Do not share:
+
+- seed phrases
+- backup passphrases
+- decrypted backup payloads
+- private keys
+- unreviewed signed raw transactions
+
+Use your own Esplora backend for better privacy before serious mainnet use.

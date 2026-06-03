@@ -1,21 +1,16 @@
 # Changelog
 
+## v0.90.0
+
+- Added backend BDK/Esplora wallet sync command.
+- Added local wallet transaction creation and signing.
+- Added signed transaction result UI with txid, raw transaction hex, fee, amount, recipient, and finalized status.
+- Added button to load signed transaction hex into the broadcast box.
+- Added optional custom Esplora API URL field.
+- Added `bdk_esplora` dependency for real backend wallet sync.
+- Updated wallet warnings to reflect real signed transaction creation.
+
 ## v0.80.0
 
-- Jumped from v0.28 to v0.80 to reflect the Core Wallet MVP direction.
-- Added real chain sync through public mempool.space Esplora APIs from the frontend.
-- Added real balance detection for the active receive address.
-- Added UTXO list.
-- Added recent transaction history.
-- Added fee estimate lookup.
-- Added Bitcoin URI generation.
-- Added raw signed transaction broadcast.
-- Persisted external BOLT12 offer in local browser storage.
-- Kept automatic wallet-built sends locked until PSBT creation/signing is implemented safely.
-- Kept in-app BOLT12 locked until LDK signet/testnet receive and recovery work.
-
-## v0.28.0
-
-- Added encrypted local wallet persistence.
-- Added backup export/restore verification.
-- Added network-aware wallet creation and receive addresses.
+- Added public Esplora address lookup in frontend.
+- Added balance detection, UTXOs, transaction history, fee estimates, raw transaction broadcast, and external BOLT12 persistence.

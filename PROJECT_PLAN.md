@@ -1,19 +1,22 @@
-# CarlosK Wallet Project Plan
+# Project Plan v0.90
 
-## Product definition
+The current goal is to finish the on-chain Bitcoin wallet first.
 
-A simple self-custody Bitcoin + BOLT12 desktop wallet.
+## Done
 
-## Required product features
+- Create/restore wallet
+- Encrypt/save/load wallet
+- Generate receive addresses
+- Display balances/UTXOs/history
+- Sync backend wallet state with Esplora
+- Create and sign wallet transaction locally
+- Broadcast signed raw transaction
+- Sign BIP-322 messages
 
-1. Create a new BTC on-chain address.
-2. Send and receive on-chain BTC.
-3. Create a Lightning wallet that accepts BOLT12.
-4. Do message signatures.
+## Next
 
-## v0.80 status
-
-- On-chain receive and balance lookup are now real through public Esplora APIs.
-- Raw transaction broadcast is real.
-- Wallet-built send transactions are next.
-- In-app BOLT12 remains future work.
+- Safer send confirmation screen
+- QR receive codes
+- Better transaction history persistence
+- Post-broadcast resync
+- Then BOLT12/LDK on signet/testnet

@@ -1,4 +1,6 @@
-# Build Notes v0.80
+# Build Notes v0.90
+
+This version adds `bdk_esplora`, so the first `cargo check` may download and compile additional Rust crates.
 
 Run on your Mac:
 
@@ -9,4 +11,4 @@ npm run check:tauri
 npm run dev
 ```
 
-This version intentionally does not include `package-lock.json` to avoid private registry lockfile problems.
+If Cargo updates `Cargo.lock`, keep that updated in source control.
